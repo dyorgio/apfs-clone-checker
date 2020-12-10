@@ -52,3 +52,5 @@ chmod +x clone_checker
 ## Work TODO
 * Investigate about directory cloning.
 * Investigate how to get j_inode_flags and check INODE_WAS_CLONED flag (optimization) [Apple APFS Reference](https://developer.apple.com/support/downloads/Apple-File-System-Reference.pdf)
+* Suppress error mode (return OK and 1).
+* Support to percentual of clone mode (A clone can have only some blocks altered).
