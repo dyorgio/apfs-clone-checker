@@ -20,6 +20,7 @@ It also make some validations and fast checking:
 * Both files are in an APFS device.
 * Files are in same device.(CLONE only supported in same device)
 * Files are normal files.
+* Files are not the same.
 * Files have same size and blocks count.
 
 In initial tests it can speedup clone checking in at least 200% (compared with shasum or md5) full file verification.
@@ -28,9 +29,9 @@ But the optimization is much better for no full cloned files, it can stops on fi
 
 ## Usage
 ```.sh
-./clone_checker pathOfFileA pathOfFileB
+./clone_checker [-f] pathOfFileA pathOfFileB
 ```
-If exit code 0 (OK) than:
+If exit code 0 (OK) than print in stdout:
 * 0 = Clones
 * 1 = Not clones (maybe partial)
 
@@ -52,5 +53,4 @@ chmod +x clone_checker
 ## Work TODO
 * Investigate about directory cloning.
 * Investigate how to get j_inode_flags and check INODE_WAS_CLONED flag (optimization) [Apple APFS Reference](https://developer.apple.com/support/downloads/Apple-File-System-Reference.pdf)
-* Suppress error mode (return OK and 1).
 * Support to percentual of clone mode (A clone can have only some blocks altered).
