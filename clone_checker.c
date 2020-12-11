@@ -17,7 +17,9 @@
 #include <string.h>
 
 // declare methods
+void printUsage(char* executable);
 int compare_blocks(int block_size, char *filenameA, char *filenameB, int fdA, int fdB);
+int compare_boundary_blocks(char *filenameA, char *filenameB, int fdA, int fdB);
 void check_disk_fs(char *filename, bool is_forced_mode);
 struct stat check_file(char *filename, bool is_forced_mode);
 
@@ -25,18 +27,19 @@ struct stat check_file(char *filename, bool is_forced_mode);
 int main(int args_count, char **args) {
 
   bool is_forced_mode = false;
+  bool is_quick_mode = false;
   int opt;
-  while ( (opt = getopt(args_count, args, "f")) != -1) {
-       switch (opt) {
-       case 'f': is_forced_mode = true; break;
-       default:
-           fprintf(stderr, "Usage: %s [-f] fileA fileB\n", args[0]);
-           exit(EXIT_FAILURE);
+  while ( (opt = getopt(args_count, args, "fqv")) != -1) {
+       switch ( opt ) {
+         case 'f': is_forced_mode = true; break;
+         case 'q': is_quick_mode = true; break;
+         case 'v': fprintf(stderr, "APFS Clone Checker - Version: 2020-11-12\n"); exit(EXIT_SUCCESS); break;
+         default:
+            printUsage(args[0]);
        }
    }
-  if (args_count - optind < 2) {
-    fprintf(stderr, "Usage: %s [-f] fileA fileB\n", args[0]);
-    exit(EXIT_FAILURE);
+  if ( args_count - optind < 2 ) {
+      printUsage(args[0]);
   }
 
   char* filenameA = args[optind];
@@ -48,7 +51,7 @@ int main(int args_count, char **args) {
   struct stat statA = check_file(filenameA, is_forced_mode);
   struct stat statB = check_file(filenameB, is_forced_mode);
 
-  if (statA.st_dev != statB.st_dev || statA.st_size != statB.st_size
+  if (statA.st_dev != statB.st_dev || statA.st_size != statB.st_size || statA.st_size < 1
       || statA.st_blocks != statB.st_blocks || statA.st_ino == statB.st_ino) {
     // clones only are supported on same device and have same size em blocks count, a file cannot be a clone of itself
     fprintf(stdout,"1\n");
@@ -58,7 +61,7 @@ int main(int args_count, char **args) {
   int fdA = open(filenameA, O_RDONLY);
   if (fdA < 0 ) {
     fprintf(stderr,"%s: Cannot open. %s\n", filenameA, strerror(errno));
-    if (is_forced_mode) {
+    if ( is_forced_mode ) {
       fprintf(stdout,"1\n");
       exit(EXIT_SUCCESS);
     } else {
@@ -70,7 +73,7 @@ int main(int args_count, char **args) {
   if ( fdB < 0 ) {
     fprintf(stderr,"%s: Cannot open. %s\n", filenameB, strerror(errno));
     close(fdA);
-    if (is_forced_mode) {
+    if ( is_forced_mode ) {
       fprintf(stdout,"1\n");
       exit(EXIT_SUCCESS);
     } else {
@@ -78,22 +81,32 @@ int main(int args_count, char **args) {
     }
   }
 
-  int result = compare_blocks(statA.st_blksize, filenameA, filenameB, fdA, fdB);
+  int result;
+  if ( is_quick_mode ) {
+    result = compare_boundary_blocks(filenameA, filenameB, fdA, fdB);
+  } else {
+    result = compare_blocks(statA.st_blksize, filenameA, filenameB, fdA, fdB);
+  }
 
   close(fdA);
   close(fdB);
 
-  if (result != -1) {
+  if ( result != -1 ) {
     fprintf(stdout,"%i\n", result);
     exit(EXIT_SUCCESS);
   } else {
-    if (is_forced_mode) {
+    if ( is_forced_mode ) {
       fprintf(stdout,"1\n");
       exit(EXIT_SUCCESS);
     } else {
       exit(EXIT_FAILURE);
     }
   }
+}
+
+void printUsage(char* executable){
+    fprintf(stderr, "Usage: %s [-fqv] fileA fileB\n", executable);
+    exit(EXIT_FAILURE);
 }
 
 int compare_blocks(int block_size, char *filenameA, char *filenameB, int fdA, int fdB) {
@@ -142,12 +155,64 @@ int compare_blocks(int block_size, char *filenameA, char *filenameB, int fdA, in
   return 1;
 }
 
+int compare_boundary_blocks(char *filenameA, char *filenameB, int fdA, int fdB) {
+
+  long sts = 0;
+  struct log2phys physA;
+  struct log2phys physB;
+  // get initial blocks physical location
+  sts = fcntl(fdA, F_LOG2PHYS, &physA);
+  if ( sts < 0 ) {
+    fprintf(stderr,"%s: Cannot convert logical to physical offset. %i %s\n", filenameA, errno, strerror(errno));
+    return -1;
+  }
+
+  sts = fcntl(fdB, F_LOG2PHYS, &physB);
+  if ( sts < 0 ) {
+    fprintf(stderr,"%s: Cannot convert logical to physical offset. %i %s\n", filenameB, errno, strerror(errno));
+    return -1;
+  }
+
+  if ( physA.l2p_devoffset == physB.l2p_devoffset ) {
+    // Move to end of files
+     sts = lseek(fdA, -1, SEEK_END);
+     if ( sts < 0 ) {
+       fprintf(stderr,"%s: Cannot seek. %ld %s\n", filenameA, sts, strerror(errno));
+       return -1;
+     }
+     sts = lseek(fdB, -1, SEEK_END);
+     if ( sts < 0 ) {
+       fprintf(stderr,"%s: Cannot seek. %ld %s\n", filenameB, sts, strerror(errno));
+       return -1;
+     }
+
+     // get last blocks physical location
+     sts = fcntl(fdA, F_LOG2PHYS, &physA);
+     if ( sts < 0 ) {
+       fprintf(stderr,"%s: Cannot convert logical to physical offset. %i %s\n", filenameA, errno, strerror(errno));
+       return -1;
+     }
+
+     sts = fcntl(fdB, F_LOG2PHYS, &physB);
+     if ( sts < 0 ) {
+       fprintf(stderr,"%s: Cannot convert logical to physical offset. %i %s\n", filenameB, errno, strerror(errno));
+       return -1;
+     }
+
+     if ( physA.l2p_devoffset == physB.l2p_devoffset ) {
+       return  0;
+     }
+  }
+
+  return 1;
+}
+
 void check_disk_fs(char *filename, bool is_forced_mode) {
   struct statfs fs;
   if( statfs(filename, &fs) == 0 ) {
     if( strcmp(fs.f_fstypename, "apfs") != 0) {
       fprintf(stderr, "%s: Only APFS is supported: %s\n", filename, fs.f_fstypename);
-      if (is_forced_mode) {
+      if ( is_forced_mode ) {
         fprintf(stdout,"1\n");
         exit(EXIT_SUCCESS);
       } else {
@@ -161,7 +226,7 @@ struct stat check_file(char *filename, bool is_forced_mode) {
   struct stat st;
   if ( stat(filename, &st) < 0 ) {
     fprintf(stderr, "%s: No such file\n", filename);
-    if (is_forced_mode) {
+    if ( is_forced_mode ) {
       fprintf(stdout,"1\n");
       exit(EXIT_SUCCESS);
     } else {
@@ -171,7 +236,7 @@ struct stat check_file(char *filename, bool is_forced_mode) {
 
   if ( (st.st_mode & S_IFMT) != S_IFREG ) {
     fprintf(stderr, "%s: Not a regular file\n", filename);
-    if (is_forced_mode) {
+    if ( is_forced_mode ) {
       fprintf(stdout,"1\n");
       exit(EXIT_SUCCESS);
     } else {
