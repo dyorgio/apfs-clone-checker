@@ -46,7 +46,7 @@ int main(int args_count, char **args) {
   check_disk_fs(filenameB, is_forced_mode);
 
   struct stat statA = check_file(filenameA, is_forced_mode);
-  struct stat statB = check_file(filenameA, is_forced_mode);
+  struct stat statB = check_file(filenameB, is_forced_mode);
 
   if (statA.st_dev != statB.st_dev || statA.st_size != statB.st_size
       || statA.st_blocks != statB.st_blocks || statA.st_ino == statB.st_ino) {
