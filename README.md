@@ -29,14 +29,21 @@ But the optimization is much better for no full cloned files, it can stops on fi
 
 ## Usage
 ```.sh
-./clone_checker [-f] pathOfFileA pathOfFileB
+./clone_checker [-fqv] pathOfFileA pathOfFileB
 ```
 If exit code 0 (OK) than print in stdout:
-* 0 = Clones
-* 1 = Not clones (maybe partial)
+* 1 = Clones
+* 0 = Not clones (maybe partial if -q option is used)
 
 If exit code not 0 (NOK) than:
 * Print in stderr what was the problem.
+
+## Options
+
+* -f (forced mode): Ignore read/validation errors and return 0 (not clones).
+* -q (quick mode): Just verify first and last blocks (fast, but not 100%).
+* -v: Print version.
+* -?,h: Print usage.
 
 ## Compilation
 Have gcc installed (XCode).<br>
@@ -52,5 +59,5 @@ chmod +x clone_checker
 
 ## Work TODO
 * Investigate about directory cloning.
-* Investigate how to get j_inode_flags and check INODE_WAS_CLONED flag (optimization) [Apple APFS Reference](https://developer.apple.com/support/downloads/Apple-File-System-Reference.pdf)
+* ~~Investigate how to get j_inode_flags and check INODE_WAS_CLONED flag (optimization) [Apple APFS Reference](https://developer.apple.com/support/downloads/Apple-File-System-Reference.pdf)~~ 2020-12-12 - To get it is necessary to use reverse engineer and parse all device fs structure.
 * Support to percentual of clone mode (A clone can have only some blocks altered).
