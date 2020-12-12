@@ -29,15 +29,17 @@ int main(int args_count, char **args) {
   bool is_forced_mode = false;
   bool is_quick_mode = false;
   int opt;
-  while ( (opt = getopt(args_count, args, "fqv")) != -1) {
+  while ( (opt = getopt(args_count, args, "fqv?h")) != -1) {
        switch ( opt ) {
          case 'f': is_forced_mode = true; break;
          case 'q': is_quick_mode = true; break;
-         case 'v': fprintf(stderr, "APFS Clone Checker - Version: 2020-12-12\n"); exit(EXIT_SUCCESS); break;
+         case 'v': fprintf(stderr, "APFS Clone Checker - Version: 1.0.0.0\n"); exit(EXIT_SUCCESS); break;
+         case '?':
+         case 'h': printUsage(args[0]);
          default:
             printUsage(args[0]);
        }
-   }
+  }
   if ( args_count - optind < 2 ) {
       printUsage(args[0]);
   }
