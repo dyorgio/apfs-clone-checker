@@ -33,7 +33,7 @@ int main(int args_count, char **args) {
        switch ( opt ) {
          case 'f': is_forced_mode = true; break;
          case 'q': is_quick_mode = true; break;
-         case 'v': fprintf(stderr, "APFS Clone Checker - Version: 2020-11-12\n"); exit(EXIT_SUCCESS); break;
+         case 'v': fprintf(stderr, "APFS Clone Checker - Version: 2020-12-12\n"); exit(EXIT_SUCCESS); break;
          default:
             printUsage(args[0]);
        }
@@ -54,7 +54,7 @@ int main(int args_count, char **args) {
   if (statA.st_dev != statB.st_dev || statA.st_size != statB.st_size || statA.st_size < 1
       || statA.st_blocks != statB.st_blocks || statA.st_ino == statB.st_ino) {
     // clones only are supported on same device and have same size em blocks count, a file cannot be a clone of itself
-    fprintf(stdout,"1\n");
+    fprintf(stdout,"0\n");
     exit(EXIT_SUCCESS);
   }
 
@@ -62,7 +62,7 @@ int main(int args_count, char **args) {
   if (fdA < 0 ) {
     fprintf(stderr,"%s: Cannot open. %s\n", filenameA, strerror(errno));
     if ( is_forced_mode ) {
-      fprintf(stdout,"1\n");
+      fprintf(stdout,"0\n");
       exit(EXIT_SUCCESS);
     } else {
       exit(EXIT_FAILURE);
@@ -74,7 +74,7 @@ int main(int args_count, char **args) {
     fprintf(stderr,"%s: Cannot open. %s\n", filenameB, strerror(errno));
     close(fdA);
     if ( is_forced_mode ) {
-      fprintf(stdout,"1\n");
+      fprintf(stdout,"0\n");
       exit(EXIT_SUCCESS);
     } else {
       exit(EXIT_FAILURE);
@@ -96,7 +96,7 @@ int main(int args_count, char **args) {
     exit(EXIT_SUCCESS);
   } else {
     if ( is_forced_mode ) {
-      fprintf(stdout,"1\n");
+      fprintf(stdout,"0\n");
       exit(EXIT_SUCCESS);
     } else {
       exit(EXIT_FAILURE);
@@ -124,7 +124,7 @@ int compare_blocks(int block_size, char *filenameA, char *filenameB, int fdA, in
       sts = fcntl(fdB, F_LOG2PHYS_EXT, &physB);
       if ( sts < 0 && errno == ERANGE ) {
         // both files seeked to the end with same offsets
-        return 0;
+        return true;
       } else if ( sts < 0 ) {
         fprintf(stderr,"%s: Cannot convert logical to physical offset. %i %s\n", filenameB, errno, strerror(errno));
         return -1;
@@ -152,7 +152,7 @@ int compare_blocks(int block_size, char *filenameA, char *filenameB, int fdA, in
   }
 
   // not a clone (check loop breaked)
-  return 1;
+  return false;
 }
 
 int compare_boundary_blocks(char *filenameA, char *filenameB, int fdA, int fdB) {
@@ -199,12 +199,10 @@ int compare_boundary_blocks(char *filenameA, char *filenameB, int fdA, int fdB) 
        return -1;
      }
 
-     if ( physA.l2p_devoffset == physB.l2p_devoffset ) {
-       return  0;
-     }
+     return physA.l2p_devoffset == physB.l2p_devoffset;
   }
 
-  return 1;
+  return false;
 }
 
 void check_disk_fs(char *filename, bool is_forced_mode) {
@@ -213,7 +211,7 @@ void check_disk_fs(char *filename, bool is_forced_mode) {
     if( strcmp(fs.f_fstypename, "apfs") != 0) {
       fprintf(stderr, "%s: Only APFS is supported: %s\n", filename, fs.f_fstypename);
       if ( is_forced_mode ) {
-        fprintf(stdout,"1\n");
+        fprintf(stdout,"0\n");
         exit(EXIT_SUCCESS);
       } else {
         exit(EXIT_FAILURE);
@@ -227,7 +225,7 @@ struct stat check_file(char *filename, bool is_forced_mode) {
   if ( stat(filename, &st) < 0 ) {
     fprintf(stderr, "%s: No such file\n", filename);
     if ( is_forced_mode ) {
-      fprintf(stdout,"1\n");
+      fprintf(stdout,"0\n");
       exit(EXIT_SUCCESS);
     } else {
       exit(EXIT_FAILURE);
@@ -237,7 +235,7 @@ struct stat check_file(char *filename, bool is_forced_mode) {
   if ( (st.st_mode & S_IFMT) != S_IFREG ) {
     fprintf(stderr, "%s: Not a regular file\n", filename);
     if ( is_forced_mode ) {
-      fprintf(stdout,"1\n");
+      fprintf(stdout,"0\n");
       exit(EXIT_SUCCESS);
     } else {
       exit(EXIT_FAILURE);
