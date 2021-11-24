@@ -58,6 +58,6 @@ chmod +x clone_checker
 ```
 
 ## Work TODO
-* Investigate about directory cloning.
+* ~~Investigate about directory cloning.~~ 2021-11-24 - Not supported, directories are always new inodes, but files inside can be all clones.
 * ~~Investigate how to get j_inode_flags and check INODE_WAS_CLONED flag (optimization) [Apple APFS Reference](https://developer.apple.com/support/downloads/Apple-File-System-Reference.pdf)~~ 2020-12-12 - To get it is necessary to use reverse engineer and parse all device fs structure.
 * Support to percentual of clone mode (A clone can have only some blocks altered).
